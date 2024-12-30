@@ -5,6 +5,8 @@ import ec.com.sofka.cases.account.CreateAccountUseCase;
 import ec.com.sofka.cases.user.FindUserByIdUseCase;
 import ec.com.sofka.data.AccountRequestDTO;
 import ec.com.sofka.data.AccountResponseDTO;
+import ec.com.sofka.exception.ConflictException;
+import ec.com.sofka.exception.RecordNotFoundException;
 import ec.com.sofka.mapper.AccountModelMapper;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
@@ -21,6 +23,7 @@ public class CreateAccountHandler {
 
     public Mono<AccountResponseDTO> save(AccountRequestDTO accountRequestDTO) {
         return findUserByIdUseCase.apply(accountRequestDTO.getUserId())
+                .switchIfEmpty(Mono.error(new ConflictException("User not found.")))
                 .flatMap(user -> {
                     Account account = AccountModelMapper.mapToModel(accountRequestDTO);
                     account.setUser(user);

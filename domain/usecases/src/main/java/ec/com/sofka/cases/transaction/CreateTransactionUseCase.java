@@ -2,7 +2,9 @@ package ec.com.sofka.cases.transaction;
 
 import ec.com.sofka.Transaction;
 import ec.com.sofka.gateway.AccountRepository;
+import ec.com.sofka.gateway.TransactionBusMessage;
 import ec.com.sofka.gateway.TransactionRepository;
+import ec.com.sofka.model.TransactionMessage;
 import ec.com.sofka.rules.BalanceCalculator;
 import ec.com.sofka.rules.ValidateTransaction;
 import reactor.core.publisher.Mono;
@@ -14,18 +16,25 @@ public class CreateTransactionUseCase {
     private final AccountRepository accountRepository;
     private final ValidateTransaction validateTransaction;
     private final BalanceCalculator balanceCalculator;
+    private final TransactionBusMessage transactionBusMessage;
 
-    public CreateTransactionUseCase(TransactionRepository transactionRepository, AccountRepository accountRepository, ValidateTransaction validateTransaction, BalanceCalculator balanceCalculator) {
+    public CreateTransactionUseCase(TransactionRepository transactionRepository, AccountRepository accountRepository, ValidateTransaction validateTransaction, BalanceCalculator balanceCalculator, TransactionBusMessage transactionBusMessage) {
         this.transactionRepository = transactionRepository;
         this.accountRepository = accountRepository;
         this.validateTransaction = validateTransaction;
         this.balanceCalculator = balanceCalculator;
+        this.transactionBusMessage = transactionBusMessage;
     }
 
     public Mono<Transaction> apply(Transaction transaction) {
         return Mono.just(transaction)
                 .flatMap(validateTransaction::validateTransaction)
-                .flatMap(this::updateBalanceAndSave);
+                .flatMap(this::updateBalanceAndSave)
+                .flatMap(tran -> {
+                    transactionBusMessage.sendMsg(new TransactionMessage(tran.getId(),
+                            tran.getTransactionType().getId()));
+                    return Mono.just(tran);
+                });
     }
 
     public Mono<Transaction> updateBalanceAndSave(Transaction transaction) {

@@ -5,6 +5,7 @@ import ec.com.sofka.cases.transaction.CreateTransactionUseCase;
 import ec.com.sofka.cases.transcationType.FindTransactionTypeByIdUseCase;
 import ec.com.sofka.data.TransactionRequestDTO;
 import ec.com.sofka.data.TransactionResponseDTO;
+import ec.com.sofka.exception.ConflictException;
 import ec.com.sofka.mapper.TransactionModelMapper;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
@@ -21,6 +22,7 @@ public class CreateTransactionHandler {
 
     public Mono<TransactionResponseDTO> save(TransactionRequestDTO transactionRequestDTO) {
         return findTransactionTypeByIdUseCase.apply(transactionRequestDTO.getTransactionTypeId())
+                .switchIfEmpty(Mono.error(new ConflictException("Transaction Type not found.")))
                 .flatMap(transactionType -> {
                     Transaction transaction = TransactionModelMapper.mapToModel(transactionRequestDTO);
                     transaction.setTransactionType(transactionType);
